@@ -401,10 +401,7 @@
           </div>
           <div class="select-wrap">
             <select class="app-select" id="courseType" onchange="updateNameDropdown();" required>
-              <option value="" selected disabled>-- กรุณาเลือกหลักสูตรก่อน --</option>
-              <option value="หลักสูตรไฟฟ้ากำลัง">หลักสูตร ไฟฟ้ากำลัง</option>
-              <option value="หลักสูตรกาแฟ">หลักสูตร กาแฟ</option>
-              <option value="หลักสูตรเบเกอรี่">หลักสูตร เบเกอรี่</option>
+              <option value="" selected disabled>-- กำลังโหลดหลักสูตร... --</option>
             </select>
           </div>
         </div>
@@ -578,6 +575,28 @@
     }
 
     initLiff();
+
+
+    /* ============================================================
+       โหลดรายชื่อหลักสูตรจากชีต name มาสร้าง dropdown อัตโนมัติ
+       ============================================================ */
+    async function loadCourses() {
+      const sel = document.getElementById('courseType');
+      try {
+        const courses = await callApi('getCourses', {});
+        sel.innerHTML = '<option value="" selected disabled>-- กรุณาเลือกหลักสูตรก่อน --</option>';
+        (courses || []).forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          sel.appendChild(opt);
+        });
+      } catch (e) {
+        sel.innerHTML = '<option value="" selected disabled>-- โหลดหลักสูตรไม่สำเร็จ --</option>';
+      }
+    }
+
+    loadCourses();
 
 
     /* ============================================================
