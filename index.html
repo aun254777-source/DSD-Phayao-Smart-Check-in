@@ -454,8 +454,33 @@
         <!-- ปุ่มบันทึก -->
         <button type="submit" class="btn-save" id="saveBtn">✅ บันทึกข้อมูล</button>
 
-        <!-- ปุ่มแจ้งปัญหา -->
-        <button type="button" class="btn-report" id="reportBtn" onclick="openReportDialog()">แจ้งปัญหาพร้อมแนบภาพหน้าจอ</button>
+        <!-- ปุ่มเปิดกล่องแจ้งปัญหา -->
+        <button type="button" class="btn-report" id="reportBtn" onclick="toggleReportBox(true)">แจ้งปัญหาพร้อมแนบภาพหน้าจอ</button>
+
+        <!-- กล่องแจ้งปัญหา (ซ่อนไว้ตอนแรก) -->
+        <div id="reportBox" style="display:none;margin-top:14px;padding:16px;border:1.5px solid #fdba74;border-radius:10px;background:#fff7ed">
+          <div style="font-weight:700;color:#b45309;margin-bottom:10px">แจ้งปัญหา</div>
+
+          <textarea id="rp-desc" class="app-input" placeholder="อธิบายปัญหาที่พบ..."
+                    style="width:100%;height:110px;resize:vertical;margin-bottom:10px"></textarea>
+
+          <button type="button" id="rp-pick" onclick="document.getElementById('reportImage').click()"
+                  style="width:100%;padding:12px;margin-bottom:8px;background:#f97316;color:#fff;border:none;border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer">
+            แนบภาพหน้าจอ
+          </button>
+          <div id="rp-imgname" style="font-size:.85rem;color:#16a34a;margin-bottom:10px;min-height:18px"></div>
+
+          <div style="display:flex;gap:8px">
+            <button type="button" onclick="submitReport()"
+                    style="flex:1;padding:12px;background:#16a34a;color:#fff;border:none;border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer">
+              ส่งปัญหา
+            </button>
+            <button type="button" onclick="toggleReportBox(false)"
+                    style="flex:1;padding:12px;background:#e2e8f0;color:#475569;border:none;border-radius:10px;font-family:'Sarabun',sans-serif;font-size:.95rem;font-weight:700;cursor:pointer">
+              ยกเลิก
+            </button>
+          </div>
+        </div>
 
       </form>
     </div>
@@ -856,10 +881,30 @@
 
 
     /* ============================================================
-       แจ้งปัญหา พร้อมแนบภาพหน้าจอ
+       แจ้งปัญหา พร้อมแนบภาพหน้าจอ (กล่องฝังในหน้า ทนการสลับแอป)
        ============================================================ */
     let reportImageBase64 = '';   // เก็บภาพที่เลือก (Base64)
     let reportImageType   = '';   // ชนิดไฟล์ภาพ
+
+    // เปิด/ปิดกล่องแจ้งปัญหา
+    function toggleReportBox(show) {
+      const box = document.getElementById('reportBox');
+      const btn = document.getElementById('reportBtn');
+      if (show) {
+        // รีเซ็ตค่าเก่า
+        reportImageBase64 = '';
+        reportImageType   = '';
+        document.getElementById('reportImage').value = '';
+        document.getElementById('rp-desc').value = '';
+        document.getElementById('rp-imgname').textContent = '';
+        box.style.display = 'block';
+        btn.style.display = 'none';
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        box.style.display = 'none';
+        btn.style.display = 'block';
+      }
+    }
 
     // เมื่อเลือกรูป → แปลงเป็น Base64 เก็บไว้
     document.getElementById('reportImage').addEventListener('change', function (e) {
@@ -868,69 +913,38 @@
 
       // จำกัดขนาดไฟล์ไม่เกิน 5MB
       if (file.size > 5 * 1024 * 1024) {
-        Swal.fire('ไฟล์ใหญ่เกินไป', 'กรุณาเลือกรูปขนาดไม่เกิน 5MB', 'warning');
+        document.getElementById('rp-imgname').textContent = '⚠️ ไฟล์ใหญ่เกิน 5MB กรุณาเลือกรูปเล็กลง';
+        document.getElementById('rp-imgname').style.color = '#dc2626';
         this.value = '';
         return;
       }
 
       const reader = new FileReader();
       reader.onload = function (ev) {
-        // ตัด prefix "data:image/...;base64," ออก เหลือแต่ข้อมูล Base64
         const result = ev.target.result;
         reportImageBase64 = result.split(',')[1] || '';
         reportImageType   = file.type || 'image/png';
 
-        // แสดงชื่อไฟล์ในกล่องแจ้งปัญหา (ไม่เด้ง popup ใหม่ที่จะปิดกล่อง)
         const nameEl = document.getElementById('rp-imgname');
-        if (nameEl) nameEl.textContent = '✅ แนบรูปแล้ว: ' + file.name;
+        nameEl.style.color = '#16a34a';
+        nameEl.textContent = '✅ แนบรูปแล้ว: ' + file.name;
       };
       reader.readAsDataURL(file);
     });
 
-    // เปิดกล่องแจ้งปัญหา
-    async function openReportDialog() {
-      // รีเซ็ตรูปเก่า
-      reportImageBase64 = '';
-      reportImageType   = '';
-      document.getElementById('reportImage').value = '';
+    // ส่งปัญหา
+    async function submitReport() {
+      const desc = document.getElementById('rp-desc').value.trim();
+      if (!desc) {
+        Swal.fire('กรุณากรอก', 'กรุณากรอกคำอธิบายปัญหา', 'warning');
+        return;
+      }
 
-      const { value: formValues } = await Swal.fire({
-        title: 'แจ้งปัญหา',
-        html:
-          '<textarea id="rp-desc" class="swal2-textarea" placeholder="อธิบายปัญหาที่พบ..." style="width:100%;height:120px;margin:0 0 12px;box-sizing:border-box"></textarea>' +
-          '<button type="button" id="rp-pick" style="width:100%;padding:12px;margin:0;background:#f97316;color:#fff;border:none;border-radius:8px;font-family:Sarabun,sans-serif;font-size:.95rem;font-weight:700;cursor:pointer">แนบภาพหน้าจอ</button>' +
-          '<div id="rp-imgname" style="margin-top:8px;font-size:.85rem;color:#16a34a"></div>',
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'ส่งปัญหา',
-        cancelButtonText: 'ยกเลิก',
-        confirmButtonColor: '#16a34a',
-        didOpen: () => {
-          // กดปุ่มแนบรูป → เปิดตัวเลือกไฟล์ (ไม่ปิดกล่อง)
-          const pickBtn = document.getElementById('rp-pick');
-          pickBtn.addEventListener('click', (ev) => {
-            ev.preventDefault();
-            document.getElementById('reportImage').click();
-          });
-        },
-        preConfirm: () => {
-          const desc = document.getElementById('rp-desc').value.trim();
-          if (!desc) {
-            Swal.showValidationMessage('กรุณากรอกคำอธิบายปัญหา');
-            return false;
-          }
-          return { desc };
-        }
-      });
-
-      if (!formValues) return;   // กดยกเลิก
-
-      // ส่งข้อมูลไป Apps Script
       Swal.fire({ title: '⏳ กำลังส่งปัญหา...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
       try {
         await callApi('reportProblem', {
-          description: formValues.desc,
+          description: desc,
           name:        document.getElementById('name').value || '',
           courseType:  document.getElementById('courseType').value || '',
           lineUserId:  lineUserId || '',
@@ -939,6 +953,7 @@
           imageType:   reportImageType
         });
 
+        toggleReportBox(false);   // ปิดกล่อง
         Swal.fire('ส่งสำเร็จ ✅', 'ขอบคุณที่แจ้งปัญหา เจ้าหน้าที่จะตรวจสอบให้', 'success');
       } catch (err) {
         Swal.fire('ส่งไม่สำเร็จ', err.message, 'error');
