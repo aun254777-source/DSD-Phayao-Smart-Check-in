@@ -553,9 +553,11 @@
           const names = await callApi('getNamesByCourse', { courseType });
           fillNameList(names);
           nameInput.disabled = false;
-          nameInput.placeholder = 'พิมพ์หรือเลือกชื่อของคุณ...';
+          nameInput.placeholder = 'พิมพ์ชื่อ-นามสกุล หรือเลือกจากรายการ...';
         } catch (e) {
-          Swal.fire('ผิดพลาด', e.message, 'error');
+          // ถึงดึงรายชื่อไม่ได้ ก็ยังให้พิมพ์ชื่อเองลงทะเบียนได้
+          nameInput.disabled = false;
+          nameInput.placeholder = 'พิมพ์ชื่อ-นามสกุลของคุณ...';
         }
       }
     }
