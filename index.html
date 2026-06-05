@@ -615,13 +615,30 @@
     }
 
 
-    /* เมื่อเลือก/พิมพ์ชื่อเสร็จ ให้ตรวจสถานะ */
-    document.getElementById('name').addEventListener('change', function () {
-      const name   = this.value.trim();
+    /* เมื่อเลือก/พิมพ์ชื่อเสร็จ ให้ตรวจสถานะ
+       รองรับทั้งการเลือกจากรายการ และการพิมพ์ชื่อใหม่เอง */
+    let nameCheckTimer = null;
+
+    function triggerTimeCheck() {
+      const name   = document.getElementById('name').value.trim();
       const course = document.getElementById('courseType').value;
       if (!name || !course) return;
       checkTimeType(name, course);
+    }
+
+    const nameEl = document.getElementById('name');
+
+    // เลือกจาก datalist หรือกด Enter
+    nameEl.addEventListener('change', triggerTimeCheck);
+
+    // พิมพ์เอง → หน่วง 0.6 วิ ค่อยตรวจ (กันเรียกถี่เกิน)
+    nameEl.addEventListener('input', function () {
+      clearTimeout(nameCheckTimer);
+      nameCheckTimer = setTimeout(triggerTimeCheck, 600);
     });
+
+    // คลิกออกจากช่อง → ตรวจทันที
+    nameEl.addEventListener('blur', triggerTimeCheck);
 
 
     /* ============================================================
@@ -731,7 +748,7 @@
       }
 
       const name       = document.getElementById('name').value;
-      const timeType   = document.getElementById('timeType').value;
+      let   timeType   = document.getElementById('timeType').value;
       const courseType = document.getElementById('courseType').value;
       const latInput   = document.getElementById('latitude').value;
       const lngInput   = document.getElementById('longitude').value;
@@ -741,6 +758,18 @@
         Swal.fire('ผิดพลาด', 'กรุณาเลือกหลักสูตรและชื่อ', 'error');
         return;
       }
+
+      // ถ้าสถานะยังว่าง (ตรวจไม่ทัน) ลองตรวจอีกครั้งก่อนบันทึก
+      if (!timeType) {
+        try {
+          timeType = await callApi('checkAttendanceType', { name, course: courseType });
+          document.getElementById('timeType').value = timeType;
+        } catch (err) {
+          Swal.fire('ผิดพลาด', 'ตรวจสอบสถานะเข้า/ออกไม่สำเร็จ กรุณาลองใหม่', 'error');
+          return;
+        }
+      }
+
       if (timeType === 'ลงทะเบียนครบแล้ว') {
         Swal.fire('ไม่สามารถบันทึกได้', 'คุณลงทะเบียนครบทั้งเข้าและออกแล้ววันนี้', 'warning');
         return;
