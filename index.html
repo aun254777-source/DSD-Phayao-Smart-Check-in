@@ -879,7 +879,10 @@
         const result = ev.target.result;
         reportImageBase64 = result.split(',')[1] || '';
         reportImageType   = file.type || 'image/png';
-        Swal.fire({ icon: 'success', title: 'แนบรูปแล้ว ✅', timer: 1200, showConfirmButton: false });
+
+        // แสดงชื่อไฟล์ในกล่องแจ้งปัญหา (ไม่เด้ง popup ใหม่ที่จะปิดกล่อง)
+        const nameEl = document.getElementById('rp-imgname');
+        if (nameEl) nameEl.textContent = '✅ แนบรูปแล้ว: ' + file.name;
       };
       reader.readAsDataURL(file);
     });
@@ -895,15 +898,18 @@
         title: 'แจ้งปัญหา',
         html:
           '<textarea id="rp-desc" class="swal2-textarea" placeholder="อธิบายปัญหาที่พบ..." style="width:100%;height:120px;margin:0 0 12px;box-sizing:border-box"></textarea>' +
-          '<button type="button" id="rp-pick" class="swal2-styled" style="width:100%;margin:0;background:#f97316;border-radius:8px">แนบภาพหน้าจอ</button>',
+          '<button type="button" id="rp-pick" style="width:100%;padding:12px;margin:0;background:#f97316;color:#fff;border:none;border-radius:8px;font-family:Sarabun,sans-serif;font-size:.95rem;font-weight:700;cursor:pointer">แนบภาพหน้าจอ</button>' +
+          '<div id="rp-imgname" style="margin-top:8px;font-size:.85rem;color:#16a34a"></div>',
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: 'ส่งปัญหา',
         cancelButtonText: 'ยกเลิก',
         confirmButtonColor: '#16a34a',
         didOpen: () => {
-          // กดปุ่มแนบรูป → เปิดตัวเลือกไฟล์
-          document.getElementById('rp-pick').addEventListener('click', () => {
+          // กดปุ่มแนบรูป → เปิดตัวเลือกไฟล์ (ไม่ปิดกล่อง)
+          const pickBtn = document.getElementById('rp-pick');
+          pickBtn.addEventListener('click', (ev) => {
+            ev.preventDefault();
             document.getElementById('reportImage').click();
           });
         },
