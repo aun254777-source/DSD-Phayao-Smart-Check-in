@@ -331,6 +331,26 @@
       cursor: not-allowed;
     }
 
+    .btn-report {
+      width: 100%;
+      margin-top: 10px;
+      padding: 13px;
+      font-family: 'Sarabun', sans-serif;
+      font-size: .95rem;
+      font-weight: 700;
+      color: #b45309;
+      background: #fff7ed;
+      border: 1.5px solid #fdba74;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: opacity .2s, transform .1s;
+    }
+
+    .btn-report:active {
+      opacity: .85;
+      transform: scale(.98);
+    }
+
     /* ========== เส้นคั่น ========== */
     .section-divider {
       height: 1px;
@@ -434,10 +454,17 @@
         <!-- ปุ่มบันทึก -->
         <button type="submit" class="btn-save" id="saveBtn">✅ บันทึกข้อมูล</button>
 
+        <!-- ปุ่มแจ้งปัญหา -->
+        <button type="button" class="btn-report" id="reportBtn" onclick="openReportDialog()">🛠 แจ้งปัญหาพร้อมแนบภาพหน้าจอ</button>
+
       </form>
     </div>
 
   </div>
+
+  <!-- input ซ่อน สำหรับเลือกภาพหน้าจอ -->
+  <input type="file" id="reportImage" accept="image/*" style="display:none">
+
 
   <script>
     // ============================================================
@@ -826,6 +853,91 @@
         Swal.fire('ผิดพลาด', err.message, 'error');
       }
     });
+
+
+    /* ============================================================
+       แจ้งปัญหา พร้อมแนบภาพหน้าจอ
+       ============================================================ */
+    let reportImageBase64 = '';   // เก็บภาพที่เลือก (Base64)
+    let reportImageType   = '';   // ชนิดไฟล์ภาพ
+
+    // เมื่อเลือกรูป → แปลงเป็น Base64 เก็บไว้
+    document.getElementById('reportImage').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // จำกัดขนาดไฟล์ไม่เกิน 5MB
+      if (file.size > 5 * 1024 * 1024) {
+        Swal.fire('ไฟล์ใหญ่เกินไป', 'กรุณาเลือกรูปขนาดไม่เกิน 5MB', 'warning');
+        this.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        // ตัด prefix "data:image/...;base64," ออก เหลือแต่ข้อมูล Base64
+        const result = ev.target.result;
+        reportImageBase64 = result.split(',')[1] || '';
+        reportImageType   = file.type || 'image/png';
+        Swal.fire({ icon: 'success', title: 'แนบรูปแล้ว ✅', timer: 1200, showConfirmButton: false });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // เปิดกล่องแจ้งปัญหา
+    async function openReportDialog() {
+      // รีเซ็ตรูปเก่า
+      reportImageBase64 = '';
+      reportImageType   = '';
+      document.getElementById('reportImage').value = '';
+
+      const { value: formValues } = await Swal.fire({
+        title: '🛠 แจ้งปัญหา',
+        html:
+          '<textarea id="rp-desc" class="swal2-textarea" placeholder="อธิบายปัญหาที่พบ..." style="height:100px"></textarea>' +
+          '<button type="button" id="rp-pick" class="swal2-confirm swal2-styled" style="background:#f97316;margin-top:8px">📷 แนบภาพหน้าจอ</button>',
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'ส่งปัญหา',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#16a34a',
+        didOpen: () => {
+          // กดปุ่มแนบรูป → เปิดตัวเลือกไฟล์
+          document.getElementById('rp-pick').addEventListener('click', () => {
+            document.getElementById('reportImage').click();
+          });
+        },
+        preConfirm: () => {
+          const desc = document.getElementById('rp-desc').value.trim();
+          if (!desc) {
+            Swal.showValidationMessage('กรุณากรอกคำอธิบายปัญหา');
+            return false;
+          }
+          return { desc };
+        }
+      });
+
+      if (!formValues) return;   // กดยกเลิก
+
+      // ส่งข้อมูลไป Apps Script
+      Swal.fire({ title: '⏳ กำลังส่งปัญหา...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+      try {
+        await callApi('reportProblem', {
+          description: formValues.desc,
+          name:        document.getElementById('name').value || '',
+          courseType:  document.getElementById('courseType').value || '',
+          lineUserId:  lineUserId || '',
+          displayName: lineDisplayName || '',
+          imageBase64: reportImageBase64,
+          imageType:   reportImageType
+        });
+
+        Swal.fire('ส่งสำเร็จ ✅', 'ขอบคุณที่แจ้งปัญหา เจ้าหน้าที่จะตรวจสอบให้', 'success');
+      } catch (err) {
+        Swal.fire('ส่งไม่สำเร็จ', err.message, 'error');
+      }
+    }
   </script>
 </body>
 </html>
